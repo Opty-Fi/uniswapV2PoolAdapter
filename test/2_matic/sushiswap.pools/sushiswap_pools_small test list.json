@@ -1,0 +1,17 @@
+{
+  "WMATIC-USDC": {
+    "pool": "0xcd353f79d9fade311fc3119b841e1f456b54e858",
+    "token0": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+    "token1": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
+  },
+  "USDC-USDT": {
+    "pool": "0x4b1f1e2435a9c96f7330faea190ef6a7c8d70001",
+    "token0": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+    "token1": "0xc2132d05d31c914a87c6611c10748aeb04b58e8f"
+  },
+  "USDC-DAI": {
+    "pool": "0xcd578f016888b57f1b1e3f887f392f0159e26747",
+    "token0": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+    "token1": "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063"
+  }
+}

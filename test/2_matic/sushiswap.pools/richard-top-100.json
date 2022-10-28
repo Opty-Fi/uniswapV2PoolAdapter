@@ -1,0 +1,32 @@
+{
+  "AAVE-TEL": {
+    "pool": "0x5d17a3089d7ff50cc2fae3d76f1be37c19e3869e",
+    "token0": "0xd6df932a45c0f255f85145f286ea0b292b21c90b",
+    "token1": "0xdf7837de1f2fa4631d716cf2502f8b230f1dcc32"
+  },
+  "ABI-DAI": {
+    "pool": "0x81fd1d6d336c3a8a0596badc664ee01269551130",
+    "token0": "0x6d5f5317308c6fe7d6ce16930353a8dfd92ba4d7",
+    "token1": "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063"
+  },
+  "ALGB-WMATIC": {
+    "pool": "0x609602abe648b1c81e4444c7ca9ffe90d89c7b77",
+    "token0": "0x0169ec1f8f639b32eec6d923e24c2a2ff45b9dd6",
+    "token1": "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"
+  },
+  "AVAX-WETH": {
+    "pool": "0x1274de0de2e9d9b1d0e06313c0e5edd01cc335ef",
+    "token0": "0x2c89bbc92bd86f8075d1decc58c7f4e0107f286b",
+    "token1": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
+  },
+  "AXS-WETH": {
+    "pool": "0x7ba331a8b360f4c31e6014abdd6852f92fb21557",
+    "token0": "0x61bdd9c7d4df4bf47a4508c0c8245505f2af5b7b",
+    "token1": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
+  },
+  "CRV-WETH": {
+    "pool": "0x396e655c309676caf0acf4607a868e0cded876db",
+    "token0": "0x172370d5cd63279efa6d502dab29171933a610af",
+    "token1": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
+  }
+}
