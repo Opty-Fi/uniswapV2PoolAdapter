@@ -1,54 +1,43 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
 import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
 import "solidity-coverage";
 import "hardhat-gas-reporter";
-import { resolve, join } from "path";
-import fs from "fs";
+import { resolve } from "path";
 import { config as dotenvConfig } from "dotenv";
 import { HardhatUserConfig, NetworkUserConfig } from "hardhat/types";
 import {
-  eArbitrumNetwork,
-  eAvalancheNetwork,
-  eBinanceSmartChainNetwork,
-  eEthereumNetwork,
-  eFantomNetwork,
-  eNetwork,
-  eOptimisticEthereumNetwork,
-  ePolygonNetwork,
-  eXDaiNetwork,
-} from "./helpers/types";
-import { NETWORKS_RPC_URL, buildForkConfig, NETWORKS_CHAIN_ID, NETWORKS_DEFAULT_GAS } from "./helper-hardhat-config";
+  NETWORKS_RPC_URL,
+  buildForkConfig,
+  NETWORKS_CHAIN_ID,
+  NETWORKS_DEFAULT_GAS,
+  eEVMNetwork,
+} from "./helper-hardhat-config";
 
 dotenvConfig({ path: resolve(__dirname, "./.env") });
 
-const SKIP_LOAD = process.env.SKIP_LOAD === "true";
-const HARDFORK = "london";
+const HARDFORK = "merge";
 const MNEMONIC_PATH = "m/44'/60'/0'/0";
-const MNEMONIC = process.env.MNEMONIC || "";
-const NETWORK = process.env.NETWORK || "hardhat";
+const FORK = process.env.FORK || "";
+const NETWORK_NAME = process.env.NETWORK_NAME || "";
+const DEFAULT_BLOCK_GAS_LIMIT = 0x1fffffffffffff;
+const DEFAULT_GAS_MUL = 5;
+const FORK_BLOCK_NUMBER = process.env.FORK_BLOCK_NUMBER ? parseInt(process.env.FORK_BLOCK_NUMBER) : 0;
 
-// Prevent to load scripts before compilation and typechain
-if (!SKIP_LOAD) {
-  ["2_polygon"].forEach(folder => {
-    const tasksPath = join(__dirname, "tasks", folder);
-    fs.readdirSync(tasksPath)
-      .filter(pth => pth.includes(".ts"))
-      .forEach(task => {
-        require(`${tasksPath}/${task}`);
-      });
-  });
-  require("./tasks/accounts");
-  require("./tasks/clean");
+let MNEMONIC: string;
+if (!process.env.MNEMONIC) {
+  throw new Error("Please set your MNEMONIC in a .env file");
+} else {
+  MNEMONIC = process.env.MNEMONIC as string;
 }
 
-const getCommonNetworkConfig = (networkName: eNetwork): NetworkUserConfig | undefined => ({
-  url: NETWORKS_RPC_URL[networkName],
+const getCommonNetworkConfig = (rpcUrl: string, networkName: eEVMNetwork, networkId: number): NetworkUserConfig => ({
+  url: rpcUrl,
   hardfork: HARDFORK,
-  gasPrice: "auto",
-  chainId: NETWORKS_CHAIN_ID[networkName],
-  initialBaseFeePerGas: 1_00_000_000,
+  blockGasLimit: DEFAULT_BLOCK_GAS_LIMIT,
+  gasMultiplier: DEFAULT_GAS_MUL,
+  gasPrice: NETWORKS_DEFAULT_GAS[networkName] || "auto",
+  chainId: networkId,
+  timeout: 100000,
   accounts: {
     mnemonic: MNEMONIC,
     path: MNEMONIC_PATH,
@@ -60,38 +49,30 @@ const getCommonNetworkConfig = (networkName: eNetwork): NetworkUserConfig | unde
 
 const config: HardhatUserConfig = {
   networks: {
-    kovan: getCommonNetworkConfig(eEthereumNetwork.kovan),
-    ropsten: getCommonNetworkConfig(eEthereumNetwork.ropsten),
-    main: getCommonNetworkConfig(eEthereumNetwork.main),
-    rinkeby: getCommonNetworkConfig(eEthereumNetwork.main),
-    goerli: getCommonNetworkConfig(eEthereumNetwork.main),
-    matic: getCommonNetworkConfig(ePolygonNetwork.matic),
-    mumbai: getCommonNetworkConfig(ePolygonNetwork.mumbai),
-    xdai: getCommonNetworkConfig(eXDaiNetwork.xdai),
-    avalanche: getCommonNetworkConfig(eAvalancheNetwork.avalanche),
-    fuji: getCommonNetworkConfig(eAvalancheNetwork.fuji),
-    arbitrum1: getCommonNetworkConfig(eArbitrumNetwork.arbitrum1),
-    rinkeby_arbitrum1: getCommonNetworkConfig(eArbitrumNetwork.rinkeby_arbitrum1),
-    fantom: getCommonNetworkConfig(eFantomNetwork.fantom),
-    fantom_test: getCommonNetworkConfig(eFantomNetwork.fantom_test),
-    bsc: getCommonNetworkConfig(eBinanceSmartChainNetwork.bsc),
-    bsc_test: getCommonNetworkConfig(eBinanceSmartChainNetwork.bsc_test),
-    oethereum: getCommonNetworkConfig(eOptimisticEthereumNetwork.oethereum),
-    kovan_oethereum: getCommonNetworkConfig(eOptimisticEthereumNetwork.kovan_oethereum),
-    goerli_oethereum: getCommonNetworkConfig(eOptimisticEthereumNetwork.goerli_oethereum),
+    mainnet: getCommonNetworkConfig(
+      NETWORKS_RPC_URL[eEVMNetwork.mainnet],
+      eEVMNetwork.mainnet,
+      NETWORKS_CHAIN_ID[eEVMNetwork.mainnet],
+    ),
+    polygon: getCommonNetworkConfig(
+      NETWORKS_RPC_URL[eEVMNetwork.polygon],
+      eEVMNetwork.polygon,
+      NETWORKS_CHAIN_ID[eEVMNetwork.polygon],
+    ),
     hardhat: {
-      hardfork: "london",
-      gasPrice: NETWORKS_DEFAULT_GAS[NETWORK],
-      chainId: NETWORKS_CHAIN_ID[NETWORK],
+      hardfork: HARDFORK,
       initialBaseFeePerGas: 1_00_000_000,
+      gasPrice: "auto",
+      forking: buildForkConfig(FORK as eEVMNetwork, FORK_BLOCK_NUMBER),
+      allowUnlimitedContractSize: false,
+      chainId: NETWORKS_CHAIN_ID[NETWORK_NAME as eEVMNetwork],
       accounts: {
-        initialIndex: 0,
-        count: 20,
         mnemonic: MNEMONIC,
         path: MNEMONIC_PATH,
-        accountsBalance: "10000000000000000000000",
+        initialIndex: 0,
+        count: 20,
+        accountsBalance: "1000000000000000000000000000",
       },
-      forking: buildForkConfig(),
     },
   },
   solidity: {

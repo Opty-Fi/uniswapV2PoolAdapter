@@ -4,7 +4,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { default as SushiswapPools } from "./sushiswap_pools_small test list.json";
 import { OptyFiOracle, TestDeFiAdapter } from "../../../typechain";
 import { LiquidityPool, Signers } from "../../types";
-import { shouldBehaveLikeSushiswapPoolAdapter } from "./SushiswapPoolAdapter.behavior";
+import { shouldBehaveLikeSushiswapPoolAdapter } from "./UniswapV2PoolAdapter.behavior";
 import { IUniswapV2Router02 } from "../../../typechain";
 import { getOverrideOptions } from "../../utils";
 import tokens from "../../../helpers/tokens.json";

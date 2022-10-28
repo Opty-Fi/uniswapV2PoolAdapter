@@ -4,28 +4,28 @@
 pragma solidity =0.8.11;
 
 //  libraries
-import { UniswapV2Library } from "../../libraries/UniswapV2Library.sol";
+import { UniswapV2Library } from "./libraries/UniswapV2Library.sol";
 import { Babylonian } from "@uniswap/lib/contracts/libraries/Babylonian.sol";
 
 // helpers
-import { AdapterModifiersBase } from "../../utils/AdapterModifiersBase.sol";
+import { AdapterModifiersBase } from "./utils/AdapterModifiersBase.sol";
 
 //  interfaces
 import { IERC20 } from "@openzeppelin/contracts-0.8.x/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts-0.8.x/token/ERC20/extensions/IERC20Metadata.sol";
-import { IAdapter } from "@optyfi/defi-legos/interfaces/defiAdapters/contracts/IAdapter.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import { IAdapter } from "@optyfi/defi-legos/interfaces/defiAdapters/contracts/IAdapter.sol";
 import { IUniswapV2Pair } from "@optyfi/defi-legos/ethereum/uniswapV2/contracts/IUniswapV2Pair.sol";
 import { IUniswapV2Factory } from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
-import { IOptyFiOracle } from "../../utils/optyfi-oracle/contracts/interfaces/IOptyFiOracle.sol";
+import { IOptyFiOracle } from "./utils/optyfi-oracle/contracts/interfaces/IOptyFiOracle.sol";
 
 /**
- * @title Adapter for Sushiswap pools protocol
+ * @title Adapter for UniswapV2 Pool and forks
  * @author Opty.fi
- * @dev Abstraction layer to Sushiswap finance's pools
+ * @dev Abstraction layer for UniswapV2 Pool and forks
  */
 
-contract SushiswapPoolAdapterPolygon is IAdapter, AdapterModifiersBase {
+contract UniswapV2PoolAdapter is IAdapter, AdapterModifiersBase {
     struct Tolerance {
         address liquidityPool;
         uint256 tolerance;
@@ -37,37 +37,21 @@ contract SushiswapPoolAdapterPolygon is IAdapter, AdapterModifiersBase {
         uint256 slippage;
     }
 
-    /** @notice Sushiswap router contract on Polygon */
-    IUniswapV2Router02 public constant sushiswapRouter = IUniswapV2Router02(0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506);
+    /** @notice Uniswap router contract */
+    IUniswapV2Router02 public immutable uniswapRouter;
 
-    /** @notice Sushiswap factory contract on Ethereum mainnet */
-    IUniswapV2Factory public constant sushiswapFactory = IUniswapV2Factory(0xc35DADB65012eC5796536bD9864eD8773aBc74C4);
-
-    /** @notice Sushiswap WMATIC-USDC liquidity pool address */
-    address public constant WMATIC_USDC = address(0xcd353F79d9FADe311fC3119B841e1f456b54e858);
-
-    /** @notice Sushiswap USDC-USDT liquidity pool address */
-    address public constant USDC_USDT = address(0x4B1F1e2435A9C96f7330FAea190Ef6A7C8D70001);
-
-    /** @notice Sushiswap USDC-DAI liquidity pool address */
-    address public constant USDC_DAI = address(0xCD578F016888B57F1b1e3f887f392F0159E26747);
-
-    /** @notice WMATIC token address*/
-    address public constant WMATIC = address(0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270);
-
-    /** @notice USDC token address*/
-    address public constant USDC = address(0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174);
-
-    /** @notice USDT token address*/
-    address public constant USDT = address(0xc2132D05D31c914a87C6611C10748AEb04B58e8F);
-
-    /** @notice DAI token address*/
-    address public constant DAI = address(0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063);
+    /** @notice Uniswap factory contract */
+    IUniswapV2Factory public immutable uniswapFactory;
 
     /** @notice Denominator for basis points calculations */
     uint256 public constant DENOMINATOR = 10000;
 
-    /** @notice OptyFi Oracle contract on Ethereum mainnet */
+    /*solhint-disable var-name-mixedcase*/
+    /** @notice rootK factor for calculating mint fee */
+    uint256 public immutable ROOT_K_FACTOR;
+    /*solhint-enable var-name-mixedcase*/
+
+    /** @notice OptyFi Oracle contract */
     IOptyFiOracle public optyFiOracle;
 
     /** @notice Maps liquidity pool to maximum price deviation */
@@ -76,17 +60,17 @@ contract SushiswapPoolAdapterPolygon is IAdapter, AdapterModifiersBase {
     /** @notice Maps liquidity pool to want token to slippage */
     mapping(address => mapping(address => uint256)) public liquidityPoolToWantTokenToSlippage;
 
-    constructor(address _registry, address _optyFiOracle) AdapterModifiersBase(_registry) {
+    constructor(
+        address _registry,
+        address _optyFiOracle,
+        IUniswapV2Router02 _uniswapRouter,
+        IUniswapV2Factory _uniswapFactory,
+        uint256 _rootKFactor
+    ) AdapterModifiersBase(_registry) {
         optyFiOracle = IOptyFiOracle(_optyFiOracle);
-        liquidityPoolToTolerance[WMATIC_USDC] = uint256(100); // 1%
-        liquidityPoolToTolerance[USDC_USDT] = uint256(100); // 1%
-        liquidityPoolToTolerance[USDC_DAI] = uint256(100); // 1%
-        liquidityPoolToWantTokenToSlippage[WMATIC_USDC][WMATIC] = uint256(100); // 1%
-        liquidityPoolToWantTokenToSlippage[WMATIC_USDC][USDC] = uint256(100); // 1%
-        liquidityPoolToWantTokenToSlippage[USDC_USDT][USDC] = uint256(100); // 1%
-        liquidityPoolToWantTokenToSlippage[USDC_USDT][USDT] = uint256(100); // 1%
-        liquidityPoolToWantTokenToSlippage[USDC_DAI][USDC] = uint256(100); // 1%
-        liquidityPoolToWantTokenToSlippage[USDC_DAI][DAI] = uint256(100); // 1%
+        uniswapRouter = _uniswapRouter;
+        uniswapFactory = _uniswapFactory;
+        ROOT_K_FACTOR = _rootKFactor;
     }
 
     /**
@@ -239,11 +223,7 @@ contract SushiswapPoolAdapterPolygon is IAdapter, AdapterModifiersBase {
         uint256 _amount
     ) public view override returns (bytes[] memory _codes) {
         if (_amount > 0) {
-            _codes = new bytes[](6);
-            _codes[0] = abi.encode(
-                _underlyingToken,
-                abi.encodeWithSignature("approve(address,uint256)", sushiswapRouter, uint256(0))
-            );
+            _codes = new bytes[](2);
             address toToken;
             uint256 swapInAmount;
             uint256 swapOutAmount;
@@ -261,16 +241,12 @@ contract SushiswapPoolAdapterPolygon is IAdapter, AdapterModifiersBase {
                 swapInAmount = _calculateSwapInAmount(reserve0, reserve1, _amount, _remainingToTokenAmount);
                 swapOutAmount = _calculateSwapOutAmount(swapInAmount, _underlyingToken, toToken);
 
-                _codes[1] = abi.encode(
-                    _underlyingToken,
-                    abi.encodeWithSignature("approve(address,uint256)", sushiswapRouter, _amount)
-                );
                 address[] memory path = new address[](2);
                 path[0] = _underlyingToken;
                 path[1] = toToken;
 
-                _codes[2] = abi.encode(
-                    sushiswapRouter,
+                _codes[0] = abi.encode(
+                    uniswapRouter,
                     abi.encodeWithSignature(
                         "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
                         swapInAmount,
@@ -282,20 +258,9 @@ contract SushiswapPoolAdapterPolygon is IAdapter, AdapterModifiersBase {
                     )
                 );
             }
-            _codes[3] = abi.encode(
-                toToken,
-                abi.encodeWithSignature("approve(address,uint256)", sushiswapRouter, uint256(0))
-            );
-            _codes[4] = abi.encode(
-                toToken,
-                abi.encodeWithSignature(
-                    "approve(address,uint256)",
-                    sushiswapRouter,
-                    swapOutAmount + _remainingToTokenAmount
-                )
-            );
-            _codes[5] = abi.encode(
-                sushiswapRouter,
+
+            _codes[1] = abi.encode(
+                uniswapRouter,
                 abi.encodeWithSignature(
                     "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)",
                     _underlyingToken,
@@ -322,15 +287,7 @@ contract SushiswapPoolAdapterPolygon is IAdapter, AdapterModifiersBase {
         uint256 _shares
     ) public view override returns (bytes[] memory _codes) {
         if (_shares > 0) {
-            _codes = new bytes[](6);
-            _codes[0] = abi.encode(
-                _liquidityPool,
-                abi.encodeWithSignature("approve(address,uint256)", sushiswapRouter, 0)
-            );
-            _codes[1] = abi.encode(
-                _liquidityPool,
-                abi.encodeWithSignature("approve(address,uint256)", sushiswapRouter, _shares)
-            );
+            _codes = new bytes[](2);
             uint256 outAmountUT;
             uint256 outAmountToToken;
             address toToken = IUniswapV2Pair(_liquidityPool).token1();
@@ -352,8 +309,8 @@ contract SushiswapPoolAdapterPolygon is IAdapter, AdapterModifiersBase {
 
                 _isPoolBalanced(_underlyingToken, toToken, reserve0, reserve1, _liquidityPool);
             }
-            _codes[2] = abi.encode(
-                sushiswapRouter,
+            _codes[0] = abi.encode(
+                uniswapRouter,
                 abi.encodeWithSignature(
                     "removeLiquidity(address,address,uint256,uint256,uint256,address,uint256)",
                     _underlyingToken,
@@ -365,15 +322,6 @@ contract SushiswapPoolAdapterPolygon is IAdapter, AdapterModifiersBase {
                     type(uint256).max
                 )
             );
-            _codes[3] = abi.encode(toToken, abi.encodeWithSignature("approve(address,uint256)", sushiswapRouter, 0));
-            _codes[4] = abi.encode(
-                toToken,
-                abi.encodeWithSignature(
-                    "approve(address,uint256)",
-                    sushiswapRouter,
-                    outAmountToToken + IERC20(toToken).balanceOf(_vault)
-                )
-            );
             address[] memory path = new address[](2);
             path[0] = toToken;
             path[1] = _underlyingToken;
@@ -382,8 +330,8 @@ contract SushiswapPoolAdapterPolygon is IAdapter, AdapterModifiersBase {
                 toToken,
                 _underlyingToken
             );
-            _codes[5] = abi.encode(
-                sushiswapRouter,
+            _codes[1] = abi.encode(
+                uniswapRouter,
                 abi.encodeWithSignature(
                     "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
                     outAmountToToken + IERC20(toToken).balanceOf(_vault),
@@ -475,7 +423,7 @@ contract SushiswapPoolAdapterPolygon is IAdapter, AdapterModifiersBase {
     }
 
     /**
-     * @dev Get the swap amount to deposit either token in Sushiswap liquidity pool
+     * @dev Get the swap amount to deposit either token in uniswap liquidity pool
      * @param reserveIn Reserve amount of the deposit token
      * @param reserveOut Reserve amount of the other token in the pair
      * @param userIn Input amount of the deposit token
@@ -562,14 +510,14 @@ contract SushiswapPoolAdapterPolygon is IAdapter, AdapterModifiersBase {
         uint256 _reserve1
     ) internal view returns (uint256 _totalSupply) {
         _totalSupply = IUniswapV2Pair(_liquidityPool).totalSupply();
-        if (sushiswapFactory.feeTo() != address(0)) {
+        if (uniswapFactory.feeTo() != address(0)) {
             uint256 _kLast = IUniswapV2Pair(_liquidityPool).kLast();
             if (_kLast != 0) {
                 uint256 rootK = Babylonian.sqrt(_reserve0 * _reserve1);
                 uint256 rootKLast = Babylonian.sqrt(_kLast);
                 if (rootK > rootKLast) {
                     uint256 numerator = _totalSupply * (rootK - rootKLast);
-                    uint256 denominator = rootK * 5 + rootKLast;
+                    uint256 denominator = ((rootK * ROOT_K_FACTOR) / 1 ether) + rootKLast;
                     uint256 liquidity = numerator / denominator;
                     if (liquidity > 0) _totalSupply += liquidity;
                 }

@@ -1,12 +1,12 @@
 import hre from "hardhat";
 import chai, { expect } from "chai";
 import { solidity } from "ethereum-waffle";
-import { PoolItem } from "../../types";
-import { getOverrideOptions, setTokenBalanceInStorage } from "../../utils";
+import { PoolItem } from "./types";
+import { getOverrideOptions, setTokenBalanceInStorage } from "./utils";
 import { BigNumber } from "ethers";
-import { ERC20 } from "../../../typechain";
+import { ERC20 } from "../typechain";
 import { default as SushiswapPools } from "./sushiswap_pools_small test list.json";
-import tokens from "../../../helpers/tokens.json";
+import tokens from "../helpers/tokens.json";
 
 chai.use(solidity);
 
