@@ -17,7 +17,9 @@ jobs:
         node-version: [14.x.x]
     
     env:
-      MATIC_RPC_URL: ${{ secrets.MATIC_RPC_URL}}
+      MAINNET_NODE_URL: ${{secrets.MAINNET_NODE_URL}}
+      POLYGON_NODE_URL: ${{ secrets.POLYGON_NODE_URL}}
+      AVALANCHE_NODE_URL: ${{ secrets.AVALANCHE_NODE_URL}}
       MNEMONIC: ${{ secrets.MNEMONIC}}
 
     steps:

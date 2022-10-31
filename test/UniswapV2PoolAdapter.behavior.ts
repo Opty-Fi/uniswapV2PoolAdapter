@@ -2,7 +2,7 @@ import chai, { expect } from "chai";
 import { solidity } from "ethereum-waffle";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
-import { LiquidityPool, PoolItem } from "./types";
+import { PoolItem } from "./types";
 import { ERC20, ERC20__factory, IUniswapV2Pair__factory, UniswapV2PoolAdapter } from "../typechain";
 import { getOverrideOptions, setTokenBalanceInStorage } from "./utils";
 
@@ -13,9 +13,7 @@ export function shouldBehaveLikeUniswapV2PoolAdapter(
   poolName: string,
   pool: PoolItem,
   tokens: { [key: string]: string },
-  pools: LiquidityPool,
   router: string,
-  sandwhichAttackStepPool: string,
   protocol: string,
 ): void {
   it(`should deposit ${underlyingTokenName} and withdraw ${underlyingTokenName} in ${poolName} pool of Sushiswap`, async function () {

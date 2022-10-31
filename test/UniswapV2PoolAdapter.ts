@@ -2,7 +2,10 @@ import { artifacts, ethers, waffle } from "hardhat";
 import { Artifact } from "hardhat/types";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { default as SushiswapPolygon } from "@optyfi/defi-legos/polygon/sushiswap";
+import { default as ApeswapPolygon } from "@optyfi/defi-legos/polygon/apeswap";
+import { default as QuickswapPolygon } from "@optyfi/defi-legos/polygon/quickswap";
 import { legos as Polygon } from "@optyfi/defi-legos/polygon";
+import { getAddress } from "ethers/lib/utils";
 import { LiquidityPool, Signers } from "./types";
 import {
   IUniswapV2Router02,
@@ -13,12 +16,11 @@ import {
 } from "../typechain";
 import { getOverrideOptions } from "./utils";
 import { shouldBehaveLikeUniswapV2PoolAdapter } from "./UniswapV2PoolAdapter.behavior";
-import { getAddress } from "ethers/lib/utils";
 
 const { deployContract } = waffle;
 
-const sushiswapPolygonTestPools: string[] = ["WMATIC-USDC", "USDC-USDT", "USDC-DAI"];
-const sushiswapPolygonTestUnderlyingTokens: { [key: string]: string } = {
+const polygonTestPools: string[] = ["WMATIC-USDC", "USDC-USDT", "USDC-DAI"];
+const polygonTestUnderlyingTokens: { [key: string]: string } = {
   USDC: getAddress(Polygon.tokens.USDC),
   USDT: getAddress(Polygon.tokens.USDT),
   DAI: getAddress(Polygon.tokens.DAI),
@@ -50,17 +52,32 @@ describe("Unit tests for UniswapV2PoolAdapter", function () {
     );
 
     // deploy Sushiswap Pools Adapter
-    const SushiswapPoolAdapterArtifact: Artifact = await artifacts.readArtifact("UniswapV2PoolAdapter");
+    const unswapV2PoolAdapterArtifact: Artifact = await artifacts.readArtifact("UniswapV2PoolAdapter");
     this.sushiswapPoolAdapter = <UniswapV2PoolAdapter>(
       await deployContract(
         this.signers.deployer,
-        SushiswapPoolAdapterArtifact,
+        unswapV2PoolAdapterArtifact,
         [
           mockRegistry.address,
           this.optyFiOracle.address,
           SushiswapPolygon.SushiswapRouter.address,
           SushiswapPolygon.SushiswapFactory.address,
           SushiswapPolygon.rootKFactor,
+        ],
+        getOverrideOptions(),
+      )
+    );
+
+    this.apeswapPoolAdapter = <UniswapV2PoolAdapter>(
+      await deployContract(
+        this.signers.deployer,
+        unswapV2PoolAdapterArtifact,
+        [
+          mockRegistry.address,
+          this.optyFiOracle.address,
+          ApeswapPolygon.ApeswapRouter.address,
+          ApeswapPolygon.ApeswapFactory.address,
+          ApeswapPolygon.rootKFactor,
         ],
         getOverrideOptions(),
       )
@@ -116,24 +133,75 @@ describe("Unit tests for UniswapV2PoolAdapter", function () {
         getAddress((SushiswapPolygon.liquidity.pools as LiquidityPool)[poolName].token1),
       ];
       for (const pairUnderlyingToken of pairUnderlyingTokens) {
-        if (!sushiswapPolygonTestPools.includes(poolName)) {
+        if (!polygonTestPools.includes(poolName)) {
           continue;
         }
-        if (Object.values(sushiswapPolygonTestUnderlyingTokens).includes(pairUnderlyingToken)) {
+        if (Object.values(polygonTestUnderlyingTokens).includes(pairUnderlyingToken)) {
           for (const key of Object.keys(Polygon.tokens)) {
-            if (
-              sushiswapPolygonTestUnderlyingTokens[key as keyof typeof sushiswapPolygonTestUnderlyingTokens] ==
-              pairUnderlyingToken
-            ) {
+            if (polygonTestUnderlyingTokens[key as keyof typeof polygonTestUnderlyingTokens] == pairUnderlyingToken) {
               shouldBehaveLikeUniswapV2PoolAdapter(
                 key,
                 poolName,
                 (SushiswapPolygon.liquidity.pools as LiquidityPool)[poolName],
                 Polygon.tokens,
-                SushiswapPolygon.liquidity.pools,
                 SushiswapPolygon.SushiswapRouter.address,
-                "WMATIC-USDC",
                 "Sushiswap",
+              );
+            }
+          }
+        }
+      }
+    });
+  });
+
+  describe("ApeswapPoolAdapter", function () {
+    Object.keys(ApeswapPolygon.liquidity.pools).map(async function (poolName: string) {
+      const pairUnderlyingTokens = [
+        getAddress((ApeswapPolygon.liquidity.pools as LiquidityPool)[poolName].token0),
+        getAddress((ApeswapPolygon.liquidity.pools as LiquidityPool)[poolName].token1),
+      ];
+      for (const pairUnderlyingToken of pairUnderlyingTokens) {
+        if (!polygonTestPools.includes(poolName)) {
+          continue;
+        }
+        if (Object.values(polygonTestUnderlyingTokens).includes(pairUnderlyingToken)) {
+          for (const key of Object.keys(Polygon.tokens)) {
+            if (polygonTestUnderlyingTokens[key as keyof typeof polygonTestUnderlyingTokens] == pairUnderlyingToken) {
+              shouldBehaveLikeUniswapV2PoolAdapter(
+                key,
+                poolName,
+                (ApeswapPolygon.liquidity.pools as LiquidityPool)[poolName],
+                Polygon.tokens,
+                ApeswapPolygon.ApeswapRouter.address,
+                "Apeswap",
+              );
+            }
+          }
+        }
+      }
+    });
+  });
+
+  describe("ApeswapPoolAdapter", function () {
+    Object.keys(QuickswapPolygon.liquidity.pools).map(async function (poolName: string) {
+      const pairUnderlyingTokens = [
+        getAddress((QuickswapPolygon.liquidity.pools as LiquidityPool)[poolName].token0),
+        getAddress((QuickswapPolygon.liquidity.pools as LiquidityPool)[poolName].token1),
+      ];
+      for (const pairUnderlyingToken of pairUnderlyingTokens) {
+        if (!polygonTestPools.includes(poolName)) {
+          continue;
+        }
+        if (Object.values(polygonTestUnderlyingTokens).includes(pairUnderlyingToken)) {
+          for (const key of Object.keys(Polygon.tokens)) {
+            if (polygonTestUnderlyingTokens[key as keyof typeof polygonTestUnderlyingTokens] == pairUnderlyingToken) {
+              shouldBehaveLikeUniswapV2PoolAdapter(
+                key,
+                poolName,
+                (QuickswapPolygon.liquidity.pools as LiquidityPool)[poolName],
+                Polygon.tokens,
+                QuickswapPolygon.QuickswapRouter.address,
+                "Quickswap",
               );
             }
           }
