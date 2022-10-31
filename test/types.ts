@@ -3,7 +3,7 @@ import { Fixture } from "ethereum-waffle";
 import { IUniswapV2Router02 } from "../typechain/IUniswapV2Router02";
 import { TestDeFiAdapter } from "../typechain/TestDeFiAdapter";
 import { OptyFiOracle } from "../typechain/OptyFiOracle";
-import { SushiswapPoolAdapterPolygon } from "../typechain";
+import { UniswapV2PoolAdapter } from "../typechain";
 
 export interface Signers {
   admin: SignerWithAddress;
@@ -28,9 +28,15 @@ export interface LiquidityPool {
 
 declare module "mocha" {
   export interface Context {
-    sushiswapPoolAdapter: SushiswapPoolAdapterPolygon;
+    sushiswapPoolAdapter: UniswapV2PoolAdapter;
+    apeswapPoolAdapter: UniswapV2PoolAdapter;
+    quickswapPoolAdapter: UniswapV2PoolAdapter;
+    uniswapV2PoolAdapter: UniswapV2PoolAdapter;
     testDeFiAdapter: TestDeFiAdapter;
     sushiswapRouter: IUniswapV2Router02;
+    apeswapRouter: IUniswapV2Router02;
+    quickswapRouter: IUniswapV2Router02;
+    uniswapV2Router: IUniswapV2Router02;
     optyFiOracle: OptyFiOracle;
     loadFixture: <T>(fixture: Fixture<T>) => Promise<T>;
     signers: Signers;

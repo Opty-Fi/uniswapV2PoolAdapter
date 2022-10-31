@@ -77,16 +77,16 @@
     "clean": "hardhat --max-memory 4096 clean",
     "commit": "git-cz",
     "compile": "env SKIP_LOAD=true TS_NODE_TRANSPILE_ONLY=1 hardhat --max-memory 4096 compile",
-    "coverage:ethereum": "cross-env CODE_COVERAGE=true FORK=main NETWORK=main TS_NODE_TRANSPILE_ONLY=1 hardhat --max-memory 4096 coverage --solcoverjs ./.solcover.js --temp artifacts --testfiles \"./test/1_ethereum/**/*.ts\"",
-    "coverage:matic": "cross-env CODE_COVERAGE=true FORK=matic NETWORK=matic TS_NODE_TRANSPILE_ONLY=1 hardhat --max-memory 4096 coverage --solcoverjs ./.solcover.js --temp artifacts --testfiles \"./test/2_matic/**/*.ts\"",
+    "coverage:ethereum": "cross-env CODE_COVERAGE=true FORK=main NETWORK_NAME=main TS_NODE_TRANSPILE_ONLY=1 hardhat --max-memory 4096 coverage --solcoverjs ./.solcover.js --temp artifacts --testfiles \"./test/1_ethereum/**/*.ts\"",
+    "coverage:matic": "cross-env CODE_COVERAGE=true FORK=matic NETWORK_NAME=matic TS_NODE_TRANSPILE_ONLY=1 hardhat --max-memory 4096 coverage --solcoverjs ./.solcover.js --temp artifacts --testfiles \"./test/2_matic/**/*.ts\"",
     "lint": "yarn run lint:sol && yarn run lint:ts && yarn run prettier:check",
     "lint:sol": "solhint --config ./.solhint.json --max-warnings 0 \"contracts/**/*.sol\"",
     "lint:ts": "eslint --config ./.eslintrc.yaml --ignore-path ./.eslintignore --ext .js,.ts .",
     "postinstall": "husky install",
     "prettier": "prettier --config ./.prettierrc.yaml --write \"**/*.{js,json,md,sol,ts}\"",
     "prettier:check": "prettier --check --config ./.prettierrc.yaml \"**/*.{js,json,md,sol,ts}\"",
-    "test:ethereum:fork": "cross-env FORK=mainnet NETWORK=mainnet TS_NODE_TRANSPILE_ONLY=1 hardhat --max-memory 4096 test ./test/**/*.ts",
-    "test:polygon:fork": "cross-env FORK=polygon NETWORK=polygon TS_NODE_TRANSPILE_ONLY=1 hardhat --max-memory 4096 test ./test/**/*.ts",
+    "test:ethereum:fork": "cross-env FORK=mainnet NETWORK_NAME=mainnet TS_NODE_TRANSPILE_ONLY=1 hardhat --max-memory 4096 test ./test/**/*.ts",
+    "test:polygon:fork": "cross-env FORK=polygon NETWORK_NAME=polygon TS_NODE_TRANSPILE_ONLY=1 hardhat --max-memory 4096 test ./test/**/*.ts",
     "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat --max-memory 4096 typechain"
   },
   "contributors": [
@@ -102,7 +102,7 @@
   "dependencies": {
     "@chainlink/contracts": "^0.3.1",
     "@openzeppelin/contracts-0.8.x": "npm:@openzeppelin/contracts@4.4.1",
-    "@optyfi/defi-legos": "0.1.0-rc.33",
+    "@optyfi/defi-legos": "0.1.0-rc.46",
     "@uniswap/v2-periphery": "^1.1.0-beta.0"
   }
 }

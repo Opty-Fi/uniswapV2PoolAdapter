@@ -1,39 +1,57 @@
-import hre from "hardhat";
 import chai, { expect } from "chai";
 import { solidity } from "ethereum-waffle";
-import { PoolItem } from "./types";
-import { getOverrideOptions, setTokenBalanceInStorage } from "./utils";
 import { BigNumber } from "ethers";
-import { ERC20 } from "../typechain";
-import { default as SushiswapPools } from "./sushiswap_pools_small test list.json";
-import tokens from "../helpers/tokens.json";
+import { ethers } from "hardhat";
+import { LiquidityPool, PoolItem } from "./types";
+import { ERC20, ERC20__factory, IUniswapV2Pair__factory, UniswapV2PoolAdapter } from "../typechain";
+import { getOverrideOptions, setTokenBalanceInStorage } from "./utils";
 
 chai.use(solidity);
 
-export function shouldBehaveLikeSushiswapPoolAdapter(
+export function shouldBehaveLikeUniswapV2PoolAdapter(
   underlyingTokenName: string,
   poolName: string,
   pool: PoolItem,
+  tokens: { [key: string]: string },
+  pools: LiquidityPool,
+  router: string,
+  sandwhichAttackStepPool: string,
+  protocol: string,
 ): void {
   it(`should deposit ${underlyingTokenName} and withdraw ${underlyingTokenName} in ${poolName} pool of Sushiswap`, async function () {
     if (pool.deprecated == true) {
       this.skip();
     }
+
+    const adapterInstances: { [key: string]: UniswapV2PoolAdapter } = {
+      Sushiswap: this.sushiswapPoolAdapter,
+      Apeswap: this.apeswapPoolAdapter,
+      Quickswap: this.quickswapPoolAdapter,
+    };
+
+    const adapterInstance = adapterInstances[protocol];
+
+    let tx = await this.testDeFiAdapter.giveAllowances([pool.pool, pool.token0, pool.token1], [router, router, router]);
+    await tx.wait(1);
+
+    tx = await adapterInstance
+      .connect(this.signers.riskOperator)
+      .setLiquidityPoolToTolerance([{ liquidityPool: pool.pool, tolerance: "150" }]);
+    await tx.wait(1);
+
+    tx = await adapterInstance.connect(this.signers.riskOperator).setLiquidityPoolToWantTokenToSlippage([
+      { liquidityPool: pool.pool, wantToken: pool.token0, slippage: "100" },
+      { liquidityPool: pool.pool, wantToken: pool.token1, slippage: "100" },
+    ]);
+
     // sushiswap's deposit pool instance
-    const sushiswapDepositInstance = await hre.ethers.getContractAt(
-      "@optyfi/defi-legos/ethereum/uniswapV2/contracts/IUniswapV2Pair.sol:IUniswapV2Pair",
-      pool.pool,
-    );
+    const sushiswapDepositInstance = await ethers.getContractAt(IUniswapV2Pair__factory.abi, pool.pool);
 
     // token0 instance
-    const token0Instance = <ERC20>(
-      await hre.ethers.getContractAt("@openzeppelin/contracts-0.8.x/token/ERC20/ERC20.sol:ERC20", pool.token0)
-    );
+    const token0Instance = <ERC20>await ethers.getContractAt(ERC20__factory.abi, pool.token0);
 
     // token1 instance
-    const token1Instance = <ERC20>(
-      await hre.ethers.getContractAt("@openzeppelin/contracts-0.8.x/token/ERC20/ERC20.sol:ERC20", pool.token1)
-    );
+    const token1Instance = <ERC20>await ethers.getContractAt(ERC20__factory.abi, pool.token1);
 
     let underlyingTokenInstance: ERC20;
     let toTokenInstance: ERC20;
@@ -58,11 +76,11 @@ export function shouldBehaveLikeSushiswapPoolAdapter(
     await this.testDeFiAdapter.testGetDepositAllCodes(
       underlyingTokenInstance.address,
       pool.pool,
-      this.sushiswapPoolAdapter.address,
+      adapterInstance.address,
       getOverrideOptions(),
     );
     // 2. assert whether lptoken balance is as expected or not after deposit
-    const actualLPTokenBalanceAfterDeposit = await this.sushiswapPoolAdapter.getLiquidityPoolTokenBalance(
+    const actualLPTokenBalanceAfterDeposit = await adapterInstance.getLiquidityPoolTokenBalance(
       this.testDeFiAdapter.address,
       this.testDeFiAdapter.address, // placeholder of type address
       pool.pool,
@@ -94,12 +112,12 @@ export function shouldBehaveLikeSushiswapPoolAdapter(
     await this.testDeFiAdapter.testGetWithdrawAllCodes(
       underlyingTokenInstance.address,
       pool.pool,
-      this.sushiswapPoolAdapter.address,
+      adapterInstance.address,
       getOverrideOptions(),
     );
 
     // 6. assert whether lpToken balance is as expected or not
-    const actualLPTokenBalanceAfterWithdraw = await this.sushiswapPoolAdapter.getLiquidityPoolTokenBalance(
+    const actualLPTokenBalanceAfterWithdraw = await adapterInstance.getLiquidityPoolTokenBalance(
       this.testDeFiAdapter.address,
       this.testDeFiAdapter.address, // placeholder of type address
       pool.pool,
@@ -113,11 +131,11 @@ export function shouldBehaveLikeSushiswapPoolAdapter(
       this.testDeFiAdapter.address,
     );
 
-    const slippage = await this.sushiswapPoolAdapter.liquidityPoolToWantTokenToSlippage(
+    const slippage = await adapterInstance.liquidityPoolToWantTokenToSlippage(
       pool.pool,
       underlyingTokenInstance.address,
     );
-    const amountOutUT = await this.sushiswapPoolAdapter.getSomeAmountInToken(
+    const amountOutUT = await adapterInstance.getSomeAmountInToken(
       underlyingTokenInstance.address,
       pool.pool,
       actualLPTokenBalanceAfterDeposit,
@@ -139,59 +157,17 @@ export function shouldBehaveLikeSushiswapPoolAdapter(
         .add(_underlyingTokenBalanceInVaultAfterDeposit),
     );
 
-    // 8. check that the sandwich attack is not possible when depositing
-    let value: string = "0";
-    if (pool.pool == SushiswapPools["WMATIC-USDC"].pool) {
-      value = "3000000";
-      const valueWithDecimals = BigNumber.from(value).mul(BigNumber.from("10").pow(await toTokenInstance.decimals()));
-      await setTokenBalanceInStorage(toTokenInstance, this.signers.attacker.address, value);
-      await toTokenInstance
-        .connect(this.signers.attacker)
-        .approve(this.sushiswapRouter.address, valueWithDecimals, getOverrideOptions());
-      await this.sushiswapRouter
-        .connect(this.signers.attacker)
-        .swapExactTokensForTokens(
-          valueWithDecimals,
-          "0",
-          [toTokenInstance.address, underlyingTokenInstance.address],
-          this.signers.attacker.address,
-          "1000000000000000000",
-          getOverrideOptions(),
-        );
-      await expect(
-        this.testDeFiAdapter.testGetDepositAllCodes(
-          underlyingTokenInstance.address,
-          pool.pool,
-          this.sushiswapPoolAdapter.address,
-          getOverrideOptions(),
-        ),
-      ).to.be.revertedWith("!imbalanced pool");
-
-      // 9. check that the sandwich attack is not possible when withdrawing
-      await setTokenBalanceInStorage(sushiswapDepositInstance as ERC20, this.testDeFiAdapter.address, "20");
-      await expect(
-        this.testDeFiAdapter.testGetWithdrawAllCodes(
-          underlyingTokenInstance.address,
-          pool.pool,
-          this.sushiswapPoolAdapter.address,
-          getOverrideOptions(),
-        ),
-      ).to.be.revertedWith("!imbalanced pool");
-    }
-
-    // 10. non-riskOperator shouldn't be able to set tolerances
+    // 8. non-riskOperator shouldn't be able to set tolerances
     await expect(
-      this.sushiswapPoolAdapter
+      adapterInstance
         .connect(this.signers.attacker)
         .setLiquidityPoolToTolerance([{ liquidityPool: "0xD75EA151a61d06868E31F8988D28DFE5E9df57B4", tolerance: 200 }]),
     ).to.be.revertedWith("caller is not the riskOperator");
 
-    // 11. riskOperator should be able to set tolerances
-    await this.sushiswapPoolAdapter
+    // 9. riskOperator should be able to set tolerances
+    await adapterInstance
       .connect(this.signers.riskOperator)
       .setLiquidityPoolToTolerance([{ liquidityPool: "0xD75EA151a61d06868E31F8988D28DFE5E9df57B4", tolerance: 200 }]);
-    expect(
-      await this.sushiswapPoolAdapter.liquidityPoolToTolerance("0xD75EA151a61d06868E31F8988D28DFE5E9df57B4"),
-    ).to.be.eq(200);
+    expect(await adapterInstance.liquidityPoolToTolerance("0xD75EA151a61d06868E31F8988D28DFE5E9df57B4")).to.be.eq(200);
   }).timeout(100000);
 }
