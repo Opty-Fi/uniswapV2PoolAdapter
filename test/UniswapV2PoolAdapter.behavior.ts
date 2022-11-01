@@ -34,12 +34,12 @@ export function shouldBehaveLikeUniswapV2PoolAdapter(
 
     tx = await adapterInstance
       .connect(this.signers.riskOperator)
-      .setLiquidityPoolToTolerance([{ liquidityPool: pool.pool, tolerance: "150" }]);
+      .setLiquidityPoolToTolerance([{ liquidityPool: pool.pool, tolerance: "300" }]);
     await tx.wait(1);
 
     tx = await adapterInstance.connect(this.signers.riskOperator).setLiquidityPoolToWantTokenToSlippage([
-      { liquidityPool: pool.pool, wantToken: pool.token0, slippage: "100" },
-      { liquidityPool: pool.pool, wantToken: pool.token1, slippage: "100" },
+      { liquidityPool: pool.pool, wantToken: pool.token0, slippage: "200" },
+      { liquidityPool: pool.pool, wantToken: pool.token1, slippage: "200" },
     ]);
 
     // sushiswap's deposit pool instance

@@ -19,11 +19,23 @@ import { shouldBehaveLikeUniswapV2PoolAdapter } from "./UniswapV2PoolAdapter.beh
 
 const { deployContract } = waffle;
 
-const polygonTestPools: string[] = ["WMATIC-USDC", "USDC-USDT", "USDC-DAI"];
-const polygonTestUnderlyingTokens: { [key: string]: string } = {
+const sushiswapPolygonTestPools: string[] = ["WMATIC-USDC", "USDC-USDT", "USDC-DAI"];
+const sushiswapPolygonTestUnderlyingTokens: { [key: string]: string } = {
   USDC: getAddress(Polygon.tokens.USDC),
   USDT: getAddress(Polygon.tokens.USDT),
   DAI: getAddress(Polygon.tokens.DAI),
+  WMATIC: getAddress(Polygon.tokens.WMATIC),
+};
+
+const apeswapPolygonTestPools: string[] = ["WMATIC-WETH"];
+const apeswapPolygonTestUnderlyingTokens: { [key: string]: string } = {
+  WETH: getAddress(Polygon.tokens.WETH),
+  WMATIC: getAddress(Polygon.tokens.WMATIC),
+};
+
+const quickswapPolygonTestPools: string[] = ["WMATIC-USDC"];
+const quickswapPolygonTestUnderlyingTokens: { [key: string]: string } = {
+  USDC: getAddress(Polygon.tokens.USDC),
   WMATIC: getAddress(Polygon.tokens.WMATIC),
 };
 
@@ -83,6 +95,21 @@ describe("Unit tests for UniswapV2PoolAdapter", function () {
       )
     );
 
+    this.quickswapPoolAdapter = <UniswapV2PoolAdapter>(
+      await deployContract(
+        this.signers.deployer,
+        unswapV2PoolAdapterArtifact,
+        [
+          mockRegistry.address,
+          this.optyFiOracle.address,
+          QuickswapPolygon.QuickswapRouter.address,
+          QuickswapPolygon.QuickswapFactory.address,
+          QuickswapPolygon.rootKFactor,
+        ],
+        getOverrideOptions(),
+      )
+    );
+
     // set price feed for WMATIC-USD
     await this.optyFiOracle.connect(this.signers.owner).setChainlinkPriceFeed([
       {
@@ -98,6 +125,15 @@ describe("Unit tests for UniswapV2PoolAdapter", function () {
         tokenA: Polygon.tokens.USDC,
         tokenB: Polygon.tokens.USD,
         priceFeed: "0xfE4A8cc5b5B2366C1B58Bea3858e81843581b2F7",
+      },
+    ]);
+
+    // set price feed for WETH-USD
+    await this.optyFiOracle.connect(this.signers.owner).setChainlinkPriceFeed([
+      {
+        tokenA: Polygon.tokens.WETH,
+        tokenB: Polygon.tokens.USD,
+        priceFeed: "0xf9680d99d6c9589e2a93a78a04a279e509205945",
       },
     ]);
 
@@ -126,6 +162,37 @@ describe("Unit tests for UniswapV2PoolAdapter", function () {
     );
   });
 
+  describe("QuickswapPoolAdapter", function () {
+    Object.keys(QuickswapPolygon.liquidity.pools).map(async function (poolName: string) {
+      const pairUnderlyingTokens = [
+        getAddress((QuickswapPolygon.liquidity.pools as LiquidityPool)[poolName].token0),
+        getAddress((QuickswapPolygon.liquidity.pools as LiquidityPool)[poolName].token1),
+      ];
+      for (const pairUnderlyingToken of pairUnderlyingTokens) {
+        if (!quickswapPolygonTestPools.includes(poolName)) {
+          continue;
+        }
+        if (Object.values(quickswapPolygonTestUnderlyingTokens).includes(pairUnderlyingToken)) {
+          for (const key of Object.keys(Polygon.tokens)) {
+            if (
+              quickswapPolygonTestUnderlyingTokens[key as keyof typeof quickswapPolygonTestUnderlyingTokens] ==
+              pairUnderlyingToken
+            ) {
+              shouldBehaveLikeUniswapV2PoolAdapter(
+                key,
+                poolName,
+                (QuickswapPolygon.liquidity.pools as LiquidityPool)[poolName],
+                Polygon.tokens,
+                QuickswapPolygon.QuickswapRouter.address,
+                "Quickswap",
+              );
+            }
+          }
+        }
+      }
+    });
+  });
+
   describe("SushiswapPoolAdapter", function () {
     Object.keys(SushiswapPolygon.liquidity.pools).map(async function (poolName: string) {
       const pairUnderlyingTokens = [
@@ -133,12 +200,15 @@ describe("Unit tests for UniswapV2PoolAdapter", function () {
         getAddress((SushiswapPolygon.liquidity.pools as LiquidityPool)[poolName].token1),
       ];
       for (const pairUnderlyingToken of pairUnderlyingTokens) {
-        if (!polygonTestPools.includes(poolName)) {
+        if (!sushiswapPolygonTestPools.includes(poolName)) {
           continue;
         }
-        if (Object.values(polygonTestUnderlyingTokens).includes(pairUnderlyingToken)) {
+        if (Object.values(sushiswapPolygonTestUnderlyingTokens).includes(pairUnderlyingToken)) {
           for (const key of Object.keys(Polygon.tokens)) {
-            if (polygonTestUnderlyingTokens[key as keyof typeof polygonTestUnderlyingTokens] == pairUnderlyingToken) {
+            if (
+              sushiswapPolygonTestUnderlyingTokens[key as keyof typeof sushiswapPolygonTestUnderlyingTokens] ==
+              pairUnderlyingToken
+            ) {
               shouldBehaveLikeUniswapV2PoolAdapter(
                 key,
                 poolName,
@@ -161,12 +231,15 @@ describe("Unit tests for UniswapV2PoolAdapter", function () {
         getAddress((ApeswapPolygon.liquidity.pools as LiquidityPool)[poolName].token1),
       ];
       for (const pairUnderlyingToken of pairUnderlyingTokens) {
-        if (!polygonTestPools.includes(poolName)) {
+        if (!apeswapPolygonTestPools.includes(poolName)) {
           continue;
         }
-        if (Object.values(polygonTestUnderlyingTokens).includes(pairUnderlyingToken)) {
+        if (Object.values(apeswapPolygonTestUnderlyingTokens).includes(pairUnderlyingToken)) {
           for (const key of Object.keys(Polygon.tokens)) {
-            if (polygonTestUnderlyingTokens[key as keyof typeof polygonTestUnderlyingTokens] == pairUnderlyingToken) {
+            if (
+              apeswapPolygonTestUnderlyingTokens[key as keyof typeof apeswapPolygonTestUnderlyingTokens] ==
+              pairUnderlyingToken
+            ) {
               shouldBehaveLikeUniswapV2PoolAdapter(
                 key,
                 poolName,
@@ -174,34 +247,6 @@ describe("Unit tests for UniswapV2PoolAdapter", function () {
                 Polygon.tokens,
                 ApeswapPolygon.ApeswapRouter.address,
                 "Apeswap",
-              );
-            }
-          }
-        }
-      }
-    });
-  });
-
-  describe("ApeswapPoolAdapter", function () {
-    Object.keys(QuickswapPolygon.liquidity.pools).map(async function (poolName: string) {
-      const pairUnderlyingTokens = [
-        getAddress((QuickswapPolygon.liquidity.pools as LiquidityPool)[poolName].token0),
-        getAddress((QuickswapPolygon.liquidity.pools as LiquidityPool)[poolName].token1),
-      ];
-      for (const pairUnderlyingToken of pairUnderlyingTokens) {
-        if (!polygonTestPools.includes(poolName)) {
-          continue;
-        }
-        if (Object.values(polygonTestUnderlyingTokens).includes(pairUnderlyingToken)) {
-          for (const key of Object.keys(Polygon.tokens)) {
-            if (polygonTestUnderlyingTokens[key as keyof typeof polygonTestUnderlyingTokens] == pairUnderlyingToken) {
-              shouldBehaveLikeUniswapV2PoolAdapter(
-                key,
-                poolName,
-                (QuickswapPolygon.liquidity.pools as LiquidityPool)[poolName],
-                Polygon.tokens,
-                QuickswapPolygon.QuickswapRouter.address,
-                "Quickswap",
               );
             }
           }
